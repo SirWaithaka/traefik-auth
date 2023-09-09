@@ -1,0 +1,41 @@
+version: "3.9"
+services:
+  # auth:
+  #   hostname: auth
+  #   container_name: authentication
+
+  traefik:
+    image: traefik:v2.10
+    container_name: traefik-proxy
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - ./traefik/static.yml:/etc/traefik/static/traefik.yml
+      - ./traefik/dynamic.yml:/etc/traefik/dynamic/dynamic.yml
+      - ./plugindemo:/plugins-local/src/github.com/traefik/plugindemo
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - traefik-proxy
+    environment:
+      - XDG_CONFIG_HOME=/etc/traefik/static
+
+  whoami:
+    image: traefik/whoami
+    networks:
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.whoami.rule=Host(`demo.localhost`)"
+      - "traefik.http.routers.whoami.entrypoints=web"
+      # Configure the plugin as a new middleware:
+      - "traefik.http.routers.whoami.middlewares=whoami-demo"
+      # Add a test header to all incoming requests:
+      # (the presense of this header in whoami response shows if the plugin works:)
+      - "traefik.http.middlewares.whoami-demo.plugin.demo.headers.DoesPluginWork=YES"
+      # - "traefik.http.routers.whoami.tls.certresolver=default"
+
+networks:
+  traefik-proxy:
+    name: traefik-proxy
+    driver: bridge
